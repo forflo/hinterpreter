@@ -1,0 +1,13 @@
+begin 
+    var I; 
+    var J; 
+    var F 
+is 
+    I:=600; 
+    J:=2; 
+    F:=3; 
+    while I do 
+        I:=I-1; 
+        J:=J+I 
+    end 
+end.

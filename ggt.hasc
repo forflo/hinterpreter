@@ -1,0 +1,18 @@
+begin
+    var A;
+    var B;
+    var GGT
+is
+    A := 112;
+    B := 32;
+    
+    while (A > 0) && (B > 0) do
+        cif (A > B) then
+            A := A % B
+        else
+            B := B % A
+        end
+    end;
+
+    GGT := A + B
+end.

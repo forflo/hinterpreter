@@ -1,0 +1,11 @@
+begin
+    var FAK;
+    var IDX
+is
+    FAK := 1;
+    IDX := 100;
+    while IDX do
+        FAK := FAK * IDX;
+        IDX := IDX - 1
+    end
+end.

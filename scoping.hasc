@@ -1,0 +1,18 @@
+begin
+    var I;
+    var J;
+    var AFTER
+is
+    J:=2;
+    I:=3;
+    begin 
+        var I
+    is
+        I:=5;
+        while I do
+            I := I - 1;
+            J := J * 2
+        end
+    end;
+    AFTER := I
+end.

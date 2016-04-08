@@ -1,0 +1,11 @@
+begin
+    const FOO = 12;
+    const BAR = 3;
+    var IDX
+is
+    IDX := 0;
+    FOO := FOO + 1;
+    while FOO do
+       IDX := IDX + 2
+    end
+end.

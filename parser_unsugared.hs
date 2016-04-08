@@ -2,9 +2,6 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import Control.Monad
 
--- Start ghci with -XFlexibleInstances !
-{-# LANGUAGE FlexibleInstances #-}
-
 -- type aliases and data declarations for parse tree generation
 type Id = String
 type Nu = Integer
@@ -12,13 +9,6 @@ type Nu = Integer
 data Expression = 
       Identifier Id 
     | Number Nu 
-    | Or Expression Expression
-    | And Expression Expression
-    | Modulo Expression Expression
-    | Equals Expression Expression
-    | NotEquals Expression Expression
-    | Greater Expression Expression
-    | Less Expression Expression
     | Addition Expression Expression
     | Subtraction Expression Expression
     | Multiplication Expression Expression
@@ -38,55 +28,43 @@ data Declaration =
       Const Id Nu
     | Variable (Id) deriving Show
 
-trimmws :: String -> String
-trimmws = filter (\x -> x /= ' ' && x /= '\n')
-
 -- helper function for running parsec parsers
 run :: Show a => Parser a -> String -> IO ()
 run p input =
-    case (parse p "" $ trimmws input) of
-        Left err -> do
-            putStr "Parse error at "
+    case (parse p "" (filter (\x -> x /= ' ' && x /= '\n') input)) of
+        Left err ->
+            putStr "Parse error at " >>
             print err
         Right x -> print x
 
-interpretfile :: FilePath -> IO (Maybe Poststore)
-interpretfile path = do
-    code <- readFile path
-    return $ interpret code
-
-interpret :: String -> Maybe Poststore
+interpret :: String -> Poststore
 interpret input = 
-    case (parse parse_program "" $ trimmws input) of
-        Left err -> Nothing
-        Right x -> Just $ eval_program x firstloc newstore
+    case (parse parse_program "" (filter (\x -> x /= ' ') input)) of
+        Left err -> undefined --(Right (do { putStr "Parse error at "; print err}))
+        Right x -> eval_program x firstloc newstore
 
 parse_expression :: Parser Expression
 parse_expression = buildExpressionParser table parse_factor
     <?> "expression"
 
-table = [[op "*" (Multiplication) AssocLeft, op "/" (Division) AssocLeft,
-            op "%" (Modulo) AssocLeft],
-         [op "+" (Addition) AssocLeft, op "-" (Subtraction) AssocLeft],
-         [op ">" (Greater) AssocLeft, op "<" (Less) AssocLeft],
-         [op "&&" (And) AssocLeft, op "||" (Or) AssocLeft],
-         [op "=" (Equals) AssocRight, op "!=" (NotEquals) AssocRight]]
+table = [[op "*" (Multiplication) AssocLeft, op "/" (Division) AssocLeft],
+         [op "+" (Addition) AssocLeft, op "-" (Subtraction) AssocLeft]]
         where
             op s f assoc
-                = Infix (do{ string s; return f}) assoc
+                = Infix (string s >> return f) assoc
 
 parse_factor :: Parser Expression
-parse_factor = do
-    char '('
-    x <- parse_expression
-    char ')'
-    return x
-    <|> do
-        id <- parse_identifier
-        return (Identifier id)
-    <|> do
-        number <- many1 digit
-        return (Number (read number))
+parse_factor = 
+    (char '(' >>=
+      \_ -> parse_expression >>=
+        \x -> char ')' >>=
+          \_ -> return x)
+    <|>
+    (parse_identifier >>=
+      \id -> return (Identifier id))
+    <|>
+    (many1 digit >>=
+      \number -> return (Number (read number)))
     <?> "simple expression"
 
 parse_statement_list :: Parser [Statement]
@@ -95,37 +73,37 @@ parse_statement_list =
 
 -- either an assignment, while-loop or block
 parse_statement :: Parser Statement
-parse_statement = do
-        id <- parse_identifier
-        string ":="
-        expression <- parse_expression
-        return (Assignment id expression)
-    <|> do
-        string "while"
-        boolean_exp <- parse_expression
-        string "do"
-        statements <- parse_statement_list
-        string "end"
-        return (While boolean_exp statements)
-    <|> do  
-        block <- parse_block
-        return (Blockstatement block)
-    <|> do
-        string "if"
-        exp <- parse_expression
-        string "then"
-        statements <- parse_statement_list
-        string "end"
-        return (Ifs exp statements)
-    <|> do
-        string "cif"
-        boolean_exp <- parse_expression
-        string "then"
-        t_statements <- parse_statement_list
-        string "else"
-        f_statements <- parse_statement_list
-        string "end"
-        return (If boolean_exp t_statements f_statements)
+parse_statement =
+    (parse_identifier >>=
+      (\id -> string ":=" >>=
+        (\_ -> parse_expression >>=
+          (\expression -> return (Assignment id expression)))))
+    <|> 
+    (string "while" >>=
+      (\_ -> parse_expression >>=
+        (\boolean_exp -> string "do" >>=
+          (\_ -> parse_statement_list >>=
+            (\statements -> string "end" >>=
+              (\_ -> return (While boolean_exp statements)))))))
+    <|>
+    (parse_block >>= 
+      (\block -> return (Blockstatement block)))
+    <|>
+    (string "if" >>=
+      (\_ -> parse_expression >>=
+        (\exp -> string "then" >>=
+          (\_ -> parse_statement_list >>=
+            (\statements -> string "end" >>=
+              (\_ -> return (Ifs exp statements)))))))
+    <|>
+    (string "cif" >>= 
+      (\_ -> parse_expression >>=
+        (\boolean_exp -> string "then" >>=
+          (\_ -> parse_statement_list >>=
+            (\t_statements -> string "else" >>=
+              (\_ -> parse_statement_list >>=
+                (\f_statements -> string "end" >>=
+                  (\_ -> return (If boolean_exp t_statements f_statements)))))))))
 
 parse_declaration_list :: Parser [Declaration]
 parse_declaration_list =
@@ -189,10 +167,6 @@ data Errvalue = Errvalue deriving Show
 data Poststore = 
       Error Store
     | Ok Store
-    deriving Show
-
-instance Show (Integer -> Integer) where
-    showsPrec _ x = showString $ "{Store: " ++ show (map x [0..20]) ++ "}"
 
 -- The Store domain
 newstore :: Store
@@ -335,62 +309,11 @@ eval_expression (Division opa opb) environment store =
             (EvNumber numb) -> EvNumber (numa `div` numb)
             (EvErr err) -> (EvErr err)
         (EvErr err) -> (EvErr err)
-eval_expression (Or opa opb) environment store =
-    case (eval_expression opa environment store) of
-        (EvNumber numa) -> case (eval_expression opb environment store) of
-            (EvNumber numb) -> EvNumber $ ht (th numa || th numb)
-            (EvErr err) -> (EvErr err)
-        (EvErr err) -> (EvErr err)
-eval_expression (And opa opb) environment store =
-    case (eval_expression opa environment store) of
-        (EvNumber numa) -> case (eval_expression opb environment store) of
-            (EvNumber numb) -> EvNumber $ ht (th numa && th numb)
-            (EvErr err) -> (EvErr err)
-        (EvErr err) -> (EvErr err)
-eval_expression (Equals opa opb) environment store =
-    case (eval_expression opa environment store) of
-        (EvNumber numa) -> case (eval_expression opb environment store) of
-            (EvNumber numb) -> EvNumber $ ht (numa == numb)
-            (EvErr err) -> (EvErr err)
-        (EvErr err) -> (EvErr err)
-eval_expression (NotEquals opa opb) environment store =
-    case (eval_expression opa environment store) of
-        (EvNumber numa) -> case (eval_expression opb environment store) of
-            (EvNumber numb) -> EvNumber $ ht (numa /= numb)
-            (EvErr err) -> (EvErr err)
-        (EvErr err) -> (EvErr err)
-eval_expression (Greater opa opb) environment store =
-    case (eval_expression opa environment store) of
-        (EvNumber numa) -> case (eval_expression opb environment store) of
-            (EvNumber numb) -> EvNumber $ ht (numa > numb)
-            (EvErr err) -> (EvErr err)
-        (EvErr err) -> (EvErr err)
-eval_expression (Modulo opa opb) environment store =
-    case (eval_expression opa environment store) of
-        (EvNumber numa) -> case (eval_expression opb environment store) of
-            (EvNumber numb) -> EvNumber (numa `mod` numb)
-            (EvErr err) -> (EvErr err)
-        (EvErr err) -> (EvErr err)
-eval_expression (Less opa opb) environment store =
-    case (eval_expression opa environment store) of
-        (EvNumber numa) -> case (eval_expression opb environment store) of
-            (EvNumber numb) -> EvNumber $ ht (numa < numb)
-            (EvErr err) -> (EvErr err)
-        (EvErr err) -> (EvErr err)
+
 eval_expression (Identifier id) environment store =
     case (accessenv id environment) of
         (DvLocation loc) -> (EvNumber (access loc store))
         (DvNumber num) -> (EvNumber num)
         (DvErr err) -> (EvErr err)
+
 eval_expression (Number num) environment store = (EvNumber num)
-
--- helper for eval_expression
-th :: Integer -> Bool
-th integer = case integer of
-    0 -> False
-    _ -> True
-
-ht :: Bool -> Integer
-ht bool = case bool of
-    True -> 1
-    False -> 0
