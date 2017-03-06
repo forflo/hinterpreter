@@ -23,17 +23,22 @@ The rest of this readme provides a few code samples
 and their evaluation.
 
 ## Syntax correkt, semantic incorrekt
-    begin
-        const FOO = 12;
-        const BAR = 3;
-        var IDX
+```pascal
+begin
+    const FOO = 12;
+    const BAR = 3;
+    var IDX
     is
-        IDX := 0;
-        FOO := FOO + 1;
-        while FOO do
-           IDX := IDX + 2
-        end
+    IDX := 0;
+    FOO := FOO + 1;
+    while FOO do
+       IDX := IDX + 2
     end
+end
+
+```
+
+Using following commands
 
     ghci>> let s2 = interpret test
     ghci>> (\(Ok store) -> map store [0..10]) s2
@@ -51,24 +56,28 @@ and their evaluation.
 Thus, correct result on memory position for variable J (position #2).
 
 # Scoping
-    begin
-        var I;
-        var J;
-        var AFTER
+```pascal
+begin
+    var I;
+    var J;
+    var AFTER
+is
+    J:=2;
+    I:=3;
+    begin 
+        var I
     is
-        J:=2;
-        I:=3;
-        begin 
-            var I
-        is
-            I:=5;
-            while I do
-                I := I - 1;
-                J := J * 2
-            end
-        end;
-        AFTER := I
-    end.
+        I:=5;
+        while I do
+            I := I - 1;
+            J := J * 2
+        end
+    end;
+    AFTER := I
+end.
+```
+
+Using following commands
 
     ghci>> let s2 = interpret "beginvarI;varJ;varAFTERisI:=3;J:=2;beginvarIisI:=5;whileIdoI:=I-1;J:=J*2endend;AFTER:=Iend."
     ghci>> (\(Ok store) -> map store [0..10]) s2
