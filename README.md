@@ -1,19 +1,22 @@
-# A parser + interpreter for a tiny educational language
-The interpreter can properly handle scopes and
-is statically typed. The only data type is Integer.
-It uses Parsec to generate an AST.
+# A parser and interpreter for a tiny, educational, Pascal-like language
 
 The sole purpose of this project is an educational one.
 I wanted to implement the semantics of a programming
 language by using the denotational semantics toolset.
 The semantic specification was largely taken from a
 book that I'm currently reading, but adjustments and
-additions have been made. For instance the if, and
-if else constructs have been added. I've also written
-the semantics fo the while loop.
+additions have been made. For instance the `if`, and
+`if else` constructs have been added. I've also added
+the semantics for the `while` loop using denotational 
+semantics.
 
-The function interpreter takes a string of program code
-and returns a Poststore, which is a mapping from
+Furthermore, the interpreter can properly handle scopes and
+is statically typed. However, the only usable data type is Integer.
+The program uses Parsec to generate an AST.
+
+_A few notes on the source code_
+The function `interpreter` takes a string of program code
+and returns a `Poststore`, which is a mapping from
 locations (integers) to values (also integers).
 
 The rest of this readme provides a few code samples
@@ -45,8 +48,7 @@ and their evaluation.
     =>[0,21,0,0,0,0,0,0,0,0,0]
        I J
 
-Somit korrektes Ergebnis auf Speicherstelle 
-für Variable J (Speicherstelle 2).
+Thus, correct result on memory position for variable J (position #2).
 
 # Scoping
     begin
@@ -73,10 +75,10 @@ für Variable J (Speicherstelle 2).
     =>[3,64,3,0,0,0,0,0,0,0,0]
        I  J AFTER
 
-# Notes
+# Usage
 
-Um Auszuprobieren:
-(1) ghci starten
-(2) Parser laden => in GHCI ":l parser.hs" eingeben
-(3) run parse_program test
+For trying out:
 
+1. Start ghci
+1. Load the interpreter laden (in ghci type `:l parser.hs)
+1. Run function `parse_program` with the argument `test`
